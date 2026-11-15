@@ -21,7 +21,11 @@ const convertResponseToModel = (gifList: IGif[]): GifImageModel[] => {
     return {
       id,
       title: title ?? '',
-      imageUrl: images.original.url
+      // 같은 해상도의 WebP는 GIF보다 훨씬 가볍습니다. WebP가 없으면 GIF로 대체합니다.
+      imageUrl:
+        typeof images.original.webp === 'string' && images.original.webp !== ''
+          ? images.original.webp
+          : images.original.url
     };
   });
 };
