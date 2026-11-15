@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import classNames from 'classnames/bind';
 
-import heroImage from '../../assets/images/hero.png';
+import heroImage from './assets/hero.webp';
 import trendingGif from '../../assets/images/trending.gif';
 import findGif from '../../assets/images/find.gif';
 import freeGif from '../../assets/images/free.gif';
@@ -21,7 +21,15 @@ const Home = () => {
   return (
     <>
       <section className={styles.heroSection}>
-        <img className={styles.heroImage} src={heroImage} alt="hero image" />
+        <img
+          className={styles.heroImage}
+          src={heroImage}
+          alt="hero image"
+          width={1600}
+          height={1067}
+          // React 18은 fetchPriority prop을 DOM에 전달하지 않아 소문자 속성으로 직접 넘깁니다.
+          {...{ fetchpriority: 'high' }}
+        />
         <div className={styles.projectTitle}>
           <h1 className={styles.title}>Memegle</h1>
           <h3 className={styles.subtitle}>gif search engine for you</h3>
