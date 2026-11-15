@@ -3,6 +3,9 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const Dotenv = require('dotenv-webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 
+// build:prod 스크립트의 --node-env=production 으로 설정됩니다.
+const isProduction = process.env.NODE_ENV === 'production';
+
 module.exports = {
   entry: './src/index.tsx',
   resolve: { extensions: ['.ts', '.tsx', '.js', '.jsx'] },
@@ -16,7 +19,8 @@ module.exports = {
     open: true,
     historyApiFallback: true
   },
-  devtool: 'source-map',
+  // 프로덕션에서는 1.4MB짜리 소스맵을 배포하지 않습니다.
+  devtool: isProduction ? false : 'eval-cheap-module-source-map',
   plugins: [
     new HtmlWebpackPlugin({
       template: './index.html'
@@ -49,6 +53,7 @@ module.exports = {
     ]
   },
   optimization: {
-    minimize: false
+    // production 빌드에서 Terser로 JS를 압축(minify/uglify)합니다.
+    minimize: isProduction
   }
 };
