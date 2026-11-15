@@ -10,7 +10,7 @@ module.exports = {
   entry: './src/index.tsx',
   resolve: { extensions: ['.ts', '.tsx', '.js', '.jsx'] },
   output: {
-    filename: 'bundle.js',
+    filename: '[name].js',
     path: path.join(__dirname, '/dist'),
     clean: true
   },
@@ -54,6 +54,17 @@ module.exports = {
   },
   optimization: {
     // production 빌드에서 Terser로 JS를 압축(minify/uglify)합니다.
-    minimize: isProduction
+    minimize: isProduction,
+    splitChunks: {
+      chunks: 'all',
+      cacheGroups: {
+        // 자주 바뀌지 않는 라이브러리를 분리해 앱 코드만 바뀐 배포에서도 캐시를 재사용합니다.
+        vendor: {
+          test: /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler|@remix-run)[\\/]/,
+          name: 'vendor',
+          chunks: 'all'
+        }
+      }
+    }
   }
 };
