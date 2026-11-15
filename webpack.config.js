@@ -10,7 +10,8 @@ module.exports = {
   entry: './src/index.tsx',
   resolve: { extensions: ['.ts', '.tsx', '.js', '.jsx'] },
   output: {
-    filename: '[name].js',
+    // [contenthash]: 내용이 바뀔 때만 파일명이 바뀌므로 CDN·브라우저에 오래 캐시해도 안전합니다.
+    filename: isProduction ? '[name].[contenthash:8].js' : '[name].js',
     path: path.join(__dirname, '/dist'),
     clean: true
   },
@@ -47,7 +48,7 @@ module.exports = {
         test: /\.(eot|svg|ttf|woff|woff2|png|jpg|gif|webp|mp4)$/i,
         loader: 'file-loader',
         options: {
-          name: 'static/[name].[ext]'
+          name: isProduction ? 'static/[name].[contenthash:8].[ext]' : 'static/[name].[ext]'
         }
       }
     ]
