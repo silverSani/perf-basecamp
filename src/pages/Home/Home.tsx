@@ -36,7 +36,7 @@ const Home = () => {
         />
         <div className={styles.projectTitle}>
           <h1 className={styles.title}>Memegle</h1>
-          <h3 className={styles.subtitle}>gif search engine for you</h3>
+          <p className={styles.subtitle}>gif search engine for you</p>
         </div>
         <Link to="/search">
           <button className={cx('cta', 'linkButton')}>start search</button>
