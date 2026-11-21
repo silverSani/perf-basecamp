@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import classNames from 'classnames/bind';
 
 import heroImage from './assets/hero.webp';
+import heroImageSmall from './assets/hero-800.webp';
 import trendingVideo from './assets/trending.mp4';
 import findVideo from './assets/find.mp4';
 import freeVideo from './assets/free.mp4';
@@ -24,6 +25,9 @@ const Home = () => {
         <img
           className={styles.heroImage}
           src={heroImage}
+          // 화면 너비에 맞는 크기를 브라우저가 고르게 해서, 모바일에서는 800px(42KB)만 받습니다.
+          srcSet={`${heroImageSmall} 800w, ${heroImage} 1600w`}
+          sizes="100vw"
           alt="hero image"
           width={1600}
           height={1067}
@@ -32,7 +36,7 @@ const Home = () => {
         />
         <div className={styles.projectTitle}>
           <h1 className={styles.title}>Memegle</h1>
-          <h3 className={styles.subtitle}>gif search engine for you</h3>
+          <p className={styles.subtitle}>gif search engine for you</p>
         </div>
         <Link to="/search">
           <button className={cx('cta', 'linkButton')}>start search</button>
