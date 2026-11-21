@@ -41,7 +41,7 @@ class PreloadHeroImagePlugin {
   }
 }
 
-// Keep the assignment's transfer-size targets from regressing in production builds.
+// Keep the assignment's compressed asset size targets from regressing in production builds.
 class PerformanceBudgetPlugin {
   apply(compiler) {
     // HtmlWebpackPlugin creates a child compiler; only inspect the page build.

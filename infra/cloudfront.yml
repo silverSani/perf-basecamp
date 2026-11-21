@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Private S3 origin and CloudFront distribution for the Memegle performance mission.
+
+Parameters:
+  SiteBucketName:
+    Type: String
+    Description: Globally unique S3 bucket name for the static site.
+
+Resources:
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref SiteBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  SiteOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-s3-origin'
+        Description: Restrict the site bucket to this CloudFront distribution.
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  SpaRewriteFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub '${AWS::StackName}-spa-rewrite'
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Rewrite extensionless app routes to the SPA entry point.
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var prefix = '/perf-basecamp';
+          if (request.uri === prefix) {
+            request.uri = prefix + '/';
+          }
+          if (request.uri.indexOf(prefix + '/') === 0) {
+            var relativePath = request.uri.slice(prefix.length + 1);
+            if (!relativePath || relativePath.indexOf('.') === -1) {
+              request.uri = prefix + '/index.html';
+            }
+          }
+          return request;
+        }
+
+  SiteCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub '${AWS::StackName}-origin-cache-control'
+        Comment: Respect S3 Cache-Control metadata; cache compressed assets by encoding.
+        MinTTL: 0
+        DefaultTTL: 0
+        MaxTTL: 31536000
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          HeadersConfig:
+            HeaderBehavior: none
+          CookiesConfig:
+            CookieBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  SiteDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: Memegle performance mission static site.
+        DefaultRootObject: perf-basecamp/index.html
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: PrivateS3Origin
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt SiteOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: PrivateS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: !Ref SiteCachePolicy
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt SpaRewriteFunction.FunctionARN
+
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontReadOnly
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${SiteBucket.Arn}/perf-basecamp/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${SiteDistribution}'
+
+Outputs:
+  SiteBucketName:
+    Value: !Ref SiteBucket
+  DistributionId:
+    Value: !Ref SiteDistribution
+  DistributionDomainName:
+    Value: !GetAtt SiteDistribution.DomainName
+  SiteUrl:
+    Value: !Sub 'https://${SiteDistribution.DomainName}/perf-basecamp/'
