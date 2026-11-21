@@ -1,4 +1,5 @@
 const path = require('path');
+const zlib = require('zlib');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const Dotenv = require('dotenv-webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
@@ -40,6 +41,55 @@ class PreloadHeroImagePlugin {
   }
 }
 
+// Keep the assignment's transfer-size targets from regressing in production builds.
+class PerformanceBudgetPlugin {
+  apply(compiler) {
+    // HtmlWebpackPlugin creates a child compiler; only inspect the page build.
+    if (compiler.parentCompilation) return;
+
+    compiler.hooks.compilation.tap('PerformanceBudgetPlugin', (compilation) => {
+      compilation.hooks.processAssets.tap(
+        {
+          name: 'PerformanceBudgetPlugin',
+          stage: compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_REPORT
+        },
+        () => {
+          if (!compilation.entrypoints.has('main')) return;
+
+          const entrypointFiles = compilation.entrypoints
+            .get('main')
+            ?.getFiles()
+            .filter((file) => file.endsWith('.js')) ?? [];
+          const initialJsBytes = entrypointFiles.reduce((total, file) => {
+            const asset = compilation.getAsset(file);
+            return total + zlib.brotliCompressSync(asset.source.source()).length;
+          }, 0);
+          const hero = Object.keys(compilation.assets).find((file) => /^static\/hero\.[^/]*webp$/.test(file));
+          const heroBytes = hero ? compilation.getAsset(hero).source.size() : 0;
+
+          compilation.getLogger('PerformanceBudgetPlugin').info(
+            `Initial JavaScript: ${initialJsBytes} B Brotli (${entrypointFiles.join(', ')})`
+          );
+          compilation.getLogger('PerformanceBudgetPlugin').info(
+            `Hero image: ${heroBytes} B${hero ? ` (${hero})` : ''}`
+          );
+
+          if (initialJsBytes >= 60000) {
+            compilation.errors.push(
+              new Error(`Initial JavaScript budget exceeded: ${initialJsBytes} B Brotli (limit: 60000 B)`)
+            );
+          }
+          if (!hero || heroBytes >= 120 * 1024) {
+            compilation.errors.push(
+              new Error(`Hero image budget exceeded or asset missing: ${heroBytes} B (limit: ${120 * 1024} B)`)
+            );
+          }
+        }
+      );
+    });
+  }
+}
+
 module.exports = {
   entry: './src/index.tsx',
   resolve: { extensions: ['.ts', '.tsx', '.js', '.jsx'] },
@@ -64,6 +114,7 @@ module.exports = {
       }
     }),
     new PreloadHeroImagePlugin(),
+    ...(isProduction ? [new PerformanceBudgetPlugin()] : []),
     new CopyWebpackPlugin({
       patterns: [{ from: './public', to: './public' }]
     }),
